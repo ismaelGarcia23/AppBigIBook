@@ -8,7 +8,7 @@ interface FilterPanelProps {
 
 const FilterPanel: React.FC<FilterPanelProps> = ({genres, activeFilters, toggleFilter }) => {
   return (
-    <div className="mb-4">
+    <div className="mb-4 text-center">
       {genres.map((genre) => (
         <button
           key={genre}

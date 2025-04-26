@@ -1,31 +1,33 @@
 import React, { useState } from 'react';
 import BookCard from '../../components/BookCard';
-import FilterPanel from '../../components/FilterPanel';
 import { useFetchData } from '../../hook/useFetchData';
-import { useNotification } from '../../hook/useNotification';
+import { useNotification } from '../../hook/useNotification';  // Importa el hook si lo usas
 import { Book } from '../../types/book';
 
 const Catalogo: React.FC = () => {
-  const { notify } = useNotification();
-  const genres = ['romance', 'fantasy', 'mystery'];
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const { notify } = useNotification(); // Usamos el hook para disparar las notificaciones
   const [favorites, setFavorites] = useState<Book[]>(() => {
     const stored = localStorage.getItem('favorites');
     return stored ? JSON.parse(stored) : [];
   });
 
-  // URL para consumir la API que mencionaste
+  // URL para consumir la API
   const { data, loading } = useFetchData<any>(
     `https://openlibrary.org/people/mekBot/books/already-read.json`
   );
-  console.log(data);
 
-  const toggleFilter = (genre: string) => {
-    setActiveFilters((prev) =>
-      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
-    );
-  };
+  // Mapeo de libros con la imagen utilizando cover_id
+  const books = data?.reading_log_entries?.slice(0, 12).map((entry: any, index: number) => ({
+    id: entry.logged_edition || `book-${index}`,
+    title: entry.work.title || 'Título no disponible',
+    author: entry.work.author_names ? entry.work.author_names[0] : 'Autor desconocido',
+    cover: entry.work.cover_id
+      ? `https://covers.openlibrary.org/b/id/${entry.work.cover_id}-M.jpg`
+      : 'https://via.placeholder.com/150',  // Placeholder si no hay portada
+    publishYear: entry.work.first_publish_year || 'Año desconocido',
+  })) || [];
 
+  // Función para agregar/quitar favoritos y mostrar notificación
   const toggleFavorite = (book: Book) => {
     const exists = favorites.find((b) => b.id === book.id);
     const updatedFavorites = exists
@@ -35,38 +37,18 @@ const Catalogo: React.FC = () => {
     setFavorites(updatedFavorites);
     localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
 
+    // Dispara la notificación
     notify(exists ? 'Libro removido de favoritos' : 'Libro agregado a favoritos');
   };
-
-  // Filtrar los libros según los filtros activos
-  const books = data?.reading_log_entries?.slice(0, 20).map((entry: any, index: number) => ({
-    id: entry.logged_edition || `book-${index}`,
-    title: entry.work.title || 'Título no disponible',
-    author: entry.work.author_names ? entry.work.author_names[0] : 'Autor desconocido',
-    cover: entry.work.cover_edition_key
-      ? `https://covers.openlibrary.org/b/id/${entry.work.cover_edition_key}-M.jpg`
-      : 'https://via.placeholder.com/150',
-    publishYear: entry.work.first_publish_year || 'Año desconocido',
-    genre: 'fantasy', // Asigna un género manualmente
-    loggedDate: entry.logged_date
-  })) || [];
-  
-
-  const filteredBooks = books.filter((book) => {
-    if (activeFilters.length === 0) return true;
-    return activeFilters.some((filter) => book.genre.toLowerCase().includes(filter.toLowerCase()));
-  });
-  
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-4 text-center">CATÁLOGO DE LIBROS</h1>
-      <FilterPanel genres={genres} activeFilters={activeFilters} toggleFilter={toggleFilter} />
       {loading ? (
         <p>Cargando libros...</p>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {filteredBooks.slice(0, 20).map((book) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+          {books.map((book) => (
             <BookCard
               key={book.id}  // Usa un valor único para cada key
               book={book}
